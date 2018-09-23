@@ -22,3 +22,7 @@ presen.pdfが完成
 
 font: 教科書体  
 
+
+# exe配布
+
+[Link (OneDrive)](https://1drv.ms/f/s!AsNlOAtK7B2-wR2JhyPvx-_UO3rF)
