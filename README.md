@@ -7,7 +7,7 @@ visual studio等でc#プロジェクトとしてビルドしてください
 必要に応じてプログラムは変えてください(特にフォントとか色とか)  
   
 # 使い方
-exeと同ディレクトリにpresen.txtを作成  
+/filesディレクトリにpresen.txtを作成  
 実行  
 presen.pdfが完成  
   
