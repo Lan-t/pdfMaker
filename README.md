@@ -6,6 +6,8 @@ using iTextSharp
 visual studio等でc#プロジェクトとしてビルドしてください  
 exeはReleaseにあります。  
 必要に応じてプログラムは変えてください(特にフォントとか色とか)  
+
+exeファイル: [PdfSeiseiKun.zip](http://page.ichigo.work/files/PdfSeiseiKun.zip)
   
 # 使い方
 /filesディレクトリにpresen.txtを作成  or テキストファイルをドラッグアンドドロップ  
