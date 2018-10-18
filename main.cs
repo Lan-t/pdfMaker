@@ -20,7 +20,7 @@ namespace pdfSeiseiKun
             {
                 inputPath = args[0];
                 outputPath = inputPath.Substring(0, inputPath.LastIndexOf('.')) + ".pdf";
-                directory = Path.GetDirectoryName(inputPath);
+                directory = Path.GetDirectoryName(inputPath) + "/";
             }
             catch(IndexOutOfRangeException)
             {
