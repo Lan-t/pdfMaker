@@ -74,5 +74,26 @@ namespace pdfSeiseiKun
             root.Add(chunk);
             }
         */
+
+
+        public static void AddPdf(PdfWriter writer, string filename, BaseFont f, Document root)
+        {
+            var reader = new PdfReader(filename);
+            for (int i = 1; ; i++)
+            {
+                try     // pageの存在確認
+                {
+                    reader.GetPageSize(i);
+                }
+                catch(System.NullReferenceException e)
+                {
+                    break;
+                }
+
+                writer.NewPage();
+                AddText(writer.DirectContent, f, root, " ", new int[] { 0, 0, 0 });
+                writer.DirectContent.AddTemplate(writer.GetImportedPage(reader, i), 0, 0);
+            }
+        }
     }
 }

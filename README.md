@@ -17,9 +17,10 @@ pdfが完成
 先頭に#でタイトル/見出し  
 `\`で改行  
 `---`で空白ページの挿入  
-`[image:{path to image}]`で画像の挿入  
+`[image:{path/to/image}]`で画像の挿入  
+`[pdf:{path/to/pdf}]`でpdfの埋め込み  
 その他１行１スライド  
-
+  
 `(titleColor:{color})`  
 `(textColor:{color})`  
 で次からの文字の色を指定  

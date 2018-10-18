@@ -14,11 +14,13 @@ namespace pdfSeiseiKun
             var configFile = new StreamReader(System.AppDomain.CurrentDomain.BaseDirectory + "config");
             string inputPath = "";
             string outputPath = "";
+            string directory = "files/";
             string font = configFile.ReadLine().Trim(new char[] { '\n' }) + ",0";
             try
             {
                 inputPath = args[0];
                 outputPath = inputPath.Substring(0, inputPath.LastIndexOf('.')) + ".pdf";
+                directory = Path.GetDirectoryName(inputPath);
             }
             catch(IndexOutOfRangeException)
             {
@@ -68,13 +70,25 @@ namespace pdfSeiseiKun
                             case "image":
                                 try
                                 {
-                                    AddContents.AddImage(root, contents[1]);
+                                    if (System.Text.RegularExpressions.Regex.IsMatch(contents[1], @"https?://.*"))
+                                    {
+                                        AddContents.AddImage(root, contents[1]);
+                                    }
+                                    else
+                                    {
+                                        AddContents.AddImage(root, directory + contents[1]);
+                                    }
                                 }
                                 catch (WebException)
                                 {
                                     AddContents.AddText(writer.DirectContent, f, root, "Image error, file not found", new int[3] { 0xff, 0, 0 });
                                 }
                                 break;
+
+                            case "pdf":
+                                AddContents.AddPdf(writer, directory + contents[1], f, root);
+                                break;
+
 
                             case "titleColor":
                                 titleColorRGB = colorToIntList(contents[1]);
@@ -102,7 +116,7 @@ namespace pdfSeiseiKun
             if (text == "") { return "pass"; }
             else if (text == "---") { return "empty"; }
             else if (text[0] == '#') { return "title"; }
-            else if (System.Text.RegularExpressions.Regex.IsMatch(text, "[*:*]")) { return "factor"; }
+            else if (System.Text.RegularExpressions.Regex.IsMatch(text, @"\[*:*\]")) { return "factor"; }
             else if (System.Text.RegularExpressions.Regex.IsMatch(text, @"\(*:*\)")) { return "config"; }
             else { return "text"; }
         }
