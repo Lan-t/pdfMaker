@@ -1,0 +1,17 @@
+# title
+text
+
+---
+
+(titleColor:RED)
+(textColor:BLUE)
+
+# red title
+blue text
+
+---
+
+[image:image.png]
+[image:https://www.google.co.jp/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png]
+
+[pdf:umekomi.pdf]
