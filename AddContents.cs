@@ -1,23 +1,50 @@
 ﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System;
+using System.Text.RegularExpressions;
 
 namespace pdfSeiseiKun
 {
-    public static class AddContents
+    public class Manegement
     {
-        public static void AddTitle(PdfContentByte master, BaseFont f, Document root, string title, int[] colorRGB)
+        PdfContentByte master { get; set; }
+        PdfWriter writer { get; set; }
+        Document root { get; set; }
+        BaseFont font { get; set; }
+
+        public int[] titleColor { get; set; } 
+        public int[] textColor { get; set; }
+
+
+        public Manegement(
+            PdfWriter writer,
+            Document root,
+            BaseFont font,
+            int[] titleColor,
+            int[] textColor
+            )
+        {
+            this.master = writer.DirectContent;
+            this.writer = writer;
+            this.root = root;
+            this.font = font;
+            this.titleColor = titleColor;
+            this.textColor = textColor;
+        }
+
+
+        public void AddTitle(string title)
         {
             root.NewPage();
-            master.SetFontAndSize(f, 70);
-            master.SetColorFill(new BaseColor(colorRGB[0], colorRGB[1], colorRGB[2]));
+            master.SetFontAndSize(font, 70);
+            master.SetColorFill(new BaseColor(titleColor[0], titleColor[1], titleColor[2]));
 
             master.BeginText();
             master.ShowTextAligned(Element.ALIGN_LEFT, title, 50, 270, 0);
             master.EndText();
         }
 
-        public static void AddText(PdfContentByte master, BaseFont f, Document root, string content, int[] colorRGB)
+        public void AddText(string content)
         {
             int x = 50;
             int y = 223;
@@ -30,8 +57,8 @@ namespace pdfSeiseiKun
             for (int i = 0; i < contents.Length; i++)
             {
 
-                master.SetFontAndSize(f, 50);
-                master.SetColorFill(new BaseColor(colorRGB[0], colorRGB[1], colorRGB[2]));
+                master.SetFontAndSize(font, 50);
+                master.SetColorFill(new BaseColor(textColor[0], textColor[1], textColor[2]));
                 master.BeginText();
                 master.ShowTextAligned(Element.ALIGN_LEFT, contents[i], x, y, 0);
                 master.EndText();
@@ -40,12 +67,12 @@ namespace pdfSeiseiKun
             }
         }
 
-        public static void AddImage(Document root, string path)
+        public void AddImage(string path)
         {
             root.NewPage();
             Image image = Image.GetInstance(path);
             float x = 0, y = 0;
-            if(image.Right / 960 < image.Top / 540)
+            if (image.Right / 960 < image.Top / 540)
             {
                 y = 500;
                 x = image.Right * (500f / image.Top);
@@ -63,20 +90,9 @@ namespace pdfSeiseiKun
             image.SetAbsolutePosition((960 - x) / 2, (540 - y) / 2);
             root.Add(image);
         }
+        
 
-        /*
-        public static void AddLink(PdfContentByte master, BaseFont f, Document root, string URL, string label)
-        {
-            var chunk = new Chunk(label);
-            chunk.SetAnchor(URL);
-
-            root.NewPage();
-            root.Add(chunk);
-            }
-        */
-
-
-        public static void AddPdf(PdfWriter writer, string filename, BaseFont f, Document root)
+        public void AddPdf(string filename)
         {
             var reader = new PdfReader(filename);
             for (int i = 1; ; i++)
@@ -85,14 +101,99 @@ namespace pdfSeiseiKun
                 {
                     reader.GetPageSize(i);
                 }
-                catch(System.NullReferenceException e)
+                catch (System.NullReferenceException e)
                 {
                     break;
                 }
 
                 writer.NewPage();
-                AddText(writer.DirectContent, f, root, " ", new int[] { 0, 0, 0 });
+                AddText(" ");
                 writer.DirectContent.AddTemplate(writer.GetImportedPage(reader, i), 0, 0);
+            }
+        }
+
+
+
+
+        public static string checkContent(string text)
+        {
+            // { content type , regular expression text }
+            var type = new string[,]
+            {
+                // { "pass",@"^\s*$" },   // finaly
+                { "empty", @"^---$"},
+                { "title", @"^#\s.+" },
+                { "itemize", @"^-\s.+" },
+                { "factor", @"^(\[)([^\[\]]+)(\s*:\s*)([^\[\]]+)(\])$" },
+                { "config", @"^(\()([^\(\)]+)(\s*:\s*)([^\(\)]+)(\))$" },
+                { "text", @"\S+" }
+            };
+
+            // check text and return
+            for (int i = 0; i < type.Length / 2; i++)
+            {
+                if (Regex.IsMatch(text, type[i, 1]))
+                {
+                    return type[i, 0];
+                }
+            }
+            return "pass";
+        }
+
+        public static string[] checkConfigAndFactor(string text)
+        {
+            var match = Regex.Match(text, @"^([\[\(])([^\[\(\]\)]+)(\s*:\s*)([^\[\(\]\)]+)([\]\)])$");
+
+            var contents = new string[2];
+
+            // [type : content]
+            contents[0] = match.Groups[2].Value;
+            contents[1] = match.Groups[4].Value;
+
+            return contents;
+        }
+
+        public static int[] colorToIntList(string colorcode)
+        {
+
+            // read hex-color-code
+            if (colorcode[0] == '#')
+            {
+                var code = Regex.Match(colorcode, @"\#([0-9]{2})([0-9]{2})([0-9]{2})");
+
+                return new int[3] {
+                int.Parse(code.Groups[1].Value,System.Globalization.NumberStyles.HexNumber),
+                int.Parse(code.Groups[2].Value,System.Globalization.NumberStyles.HexNumber),
+                int.Parse(code.Groups[3].Value,System.Globalization.NumberStyles.HexNumber)
+                };
+            }
+
+
+            switch (colorcode)
+            {
+                case "BLACK":
+                    return new int[3] { 0, 0, 0 };
+
+                case "RED":
+                    return new int[3] { 0xff, 0, 0 };
+
+                case "GREEN":
+                    return new int[3] { 0, 0xff, 0 };
+
+                case "BLUE":
+                    return new int[3] { 0, 0, 0xff };
+
+                case "CYAN":
+                    return new int[3] { 0, 0xff, 0xff };
+
+                case "MAGENTA":
+                    return new int[3] { 0xff, 0, 0xff };
+
+                case "YELLOW":
+                    return new int[3] { 0xff, 0xff, 0 };
+
+                default:
+                    goto case "BLACK";
             }
         }
     }

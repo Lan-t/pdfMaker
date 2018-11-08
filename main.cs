@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace pdfSeiseiKun
 {
-    class Program
+    class PdfSeiseiKun
     {
         static void Main(string[] args)
         {
@@ -48,10 +48,15 @@ namespace pdfSeiseiKun
             var f = BaseFont.CreateFont(font, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
             // open text file
             var file = new StreamReader(inputPath);
-            // set font color(title, other-text)
-            var titleColorRGB = new int[3] { 0x00, 0xd4, 0xff };
-            var textColorRGB = new int[3] { 0x00, 0x00, 0x00 };
 
+            // set class instance
+            var manegemant = new Manegement(
+                writer,
+                root,
+                f,
+                new int[3] { 0x00, 0xd4, 0xff }, // cyan
+                new int[3] { 0x00, 0x00, 0x00 } // black
+                );
 
             /*** start main ***/
 
@@ -63,17 +68,17 @@ namespace pdfSeiseiKun
                 // read text
                 string text = file.ReadLine();
                 // check content type.  category is type string
-                string category = checkContent(text);
+                string category = Manegement.checkContent(text);
 
                 //  switch action for category
                 switch (category)
                 {
                     case "text":
-                        AddContents.AddText(writer.DirectContent, f, root, text, textColorRGB);
+                        manegemant.AddText(text);
                         break;
 
                     case "title":
-                        AddContents.AddTitle(writer.DirectContent, f, root, text.Substring(2), titleColorRGB);
+                        manegemant.AddTitle(text.Substring(2));
                         break;
 
                     case "itemize":
@@ -84,14 +89,14 @@ namespace pdfSeiseiKun
 
                     case "empty":
                         // write blank to make blank slide
-                        AddContents.AddTitle(writer.DirectContent, f, root, " ", textColorRGB);
+                        manegemant.AddText(" ");
                         break;
 
                     case "pass":
                         // if end itemize, write it
                         if (itemizeTmp != "")
                         {
-                            AddContents.AddText(writer.DirectContent, f, root, itemizeTmp.TrimEnd(new char[] { '\\' }), textColorRGB);
+                            manegemant.AddText(itemizeTmp.TrimEnd(new char[] { '\\' }));
                             // reset tmp
                             itemizeTmp = "";
                         }
@@ -103,7 +108,7 @@ namespace pdfSeiseiKun
                         // get text for config
                         // string[0] is type
                         // conten[1] is content
-                        string[] contents = checkConfigAndFactor(text);
+                        string[] contents = Manegement.checkConfigAndFactor(text);
 
                         switch (contents[0])
                         {
@@ -114,32 +119,45 @@ namespace pdfSeiseiKun
                                         || Regex.IsMatch(contents[1], @"^[c-zC-Z]:\.*") // absolute path (win)
                                         || Regex.IsMatch(contents[1], @"^/.*")) // absolute path (unix)
                                     {
-                                        AddContents.AddImage(root, contents[1]);
+                                        manegemant.AddImage(contents[1]);
                                     }
                                     // if relative path, add insert file directory
                                     else
                                     {
-                                        AddContents.AddImage(root, directory + contents[1]);
+                                        manegemant.AddImage(directory + contents[1]);
                                     }
                                 }
                                 // if cant find image, write massege "Image error, file not found"
                                 catch (WebException)
                                 {
-                                    AddContents.AddText(writer.DirectContent, f, root, "Image error, file not found", new int[3] { 0xff, 0, 0 });
+                                    var tmp = manegemant.textColor;
+                                    manegemant.textColor = new int[3] { 0xff, 0, 0 };
+                                    manegemant.AddText("Image error, file not found");
+                                    manegemant.textColor = tmp;
                                 }
                                 break;
 
                             case "pdf":
-                                AddContents.AddPdf(writer, directory + contents[1], f, root);
+                                if (Regex.IsMatch(contents[1], @"https?://.*")  // URL
+                                        || Regex.IsMatch(contents[1], @"^[a-zA-Z]:\\.*") // absolute path (win)
+                                        || Regex.IsMatch(contents[1], @"^/.*")) // absolute path (unix)
+                                {
+                                    manegemant.AddPdf(contents[1]);
+                                }
+                                // if relative path, add insert file directory
+                                else
+                                {
+                                    manegemant.AddPdf(directory + contents[1]);
+                                }
                                 break;
 
 
                             case "titleColor":
-                                titleColorRGB = colorToIntList(contents[1]);
+                                manegemant.titleColor = Manegement.colorToIntList(contents[1]);
                                 break;
 
                             case "textColor":
-                                textColorRGB = colorToIntList(contents[1]);
+                                manegemant.textColor = Manegement.colorToIntList(contents[1]);
                                 break;
                         }
                         break;
@@ -153,94 +171,12 @@ namespace pdfSeiseiKun
             // if document has no page, add blank to make blanc pdf
             catch
             {
-                AddContents.AddTitle(writer.DirectContent, f, root, " ", textColorRGB);
+                manegemant.AddTitle(" ");
                 root.Close();
             }
             return;
         }
 
-
-        static string checkContent(string text)
-        {
-            // { content type , regular expression text }
-            var type = new string[,]
-            {
-                // { "pass",@"^\s*$" },   // finaly
-                { "empty", @"^---$"},
-                { "title", @"^#\s.+" },
-                { "itemize", @"^-\s.+" },
-                { "factor", @"^(\[)([^\[\]]+)(\s*:\s*)([^\[\]]+)(\])$" },
-                { "config", @"^(\()([^\(\)]+)(\s*:\s*)([^\(\)]+)(\))$" },
-                { "text", @"\S+" }
-            };
-            
-            // check text and return
-            for(int i = 0; i < type.Length/2; i++)
-            {
-                if (Regex.IsMatch(text, type[i, 1]))
-                {
-                    return type[i, 0];
-                }
-            }
-            return "pass";
-        }
-
-        static string[] checkConfigAndFactor(string text)
-        {
-            var match = Regex.Match(text, @"^([\[\(])([^\[\(\]\)]+)(\s*:\s*)([^\[\(\]\)]+)([\]\)])$");
-
-            var contents = new string[2];
-
-            // [type : content]
-            contents[0] = match.Groups[2].Value;
-            contents[1] = match.Groups[4].Value;
-            
-            return contents;
-        }
-
-        static int[] colorToIntList(string colorcode)
-        {
-
-            // read hex-color-code
-            if (colorcode[0] == '#')
-            {
-                var code = Regex.Match(colorcode, @"\#([0-9]{2})([0-9]{2})([0-9]{2})");
-                
-                return new int[3] {
-                int.Parse(code.Groups[1].Value,System.Globalization.NumberStyles.HexNumber),
-                int.Parse(code.Groups[2].Value,System.Globalization.NumberStyles.HexNumber),
-                int.Parse(code.Groups[3].Value,System.Globalization.NumberStyles.HexNumber)
-                };
-            }
-            
-
-            switch(colorcode)
-            {
-                case "BLACK":
-                    return new int[3] { 0, 0, 0 };
-
-                case "RED":
-                    return new int[3] { 0xff, 0, 0 };
-
-                case "GREEN":
-                    return new int[3] { 0, 0xff, 0 };
-
-                case "BLUE":
-                    return new int[3] { 0, 0, 0xff };
-
-                case "CYAN":
-                    return new int[3] { 0, 0xff, 0xff };
-
-                case "MAGENTA":
-                    return new int[3] { 0xff, 0, 0xff };
-
-                case "YELLOW":
-                    return new int[3] { 0xff, 0xff, 0 };
-
-                default:
-                    goto case "BLACK";
-            }
-        }
     }
 }
 
