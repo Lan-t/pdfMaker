@@ -1,6 +1,5 @@
 ﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
-using System;
 using System.Text.RegularExpressions;
 
 namespace pdfSeiseiKun
@@ -12,6 +11,8 @@ namespace pdfSeiseiKun
         Document root { get; set; }
         BaseFont font { get; set; }
 
+        public string subtitle { get; set; }
+
         public int[] titleColor { get; set; } 
         public int[] textColor { get; set; }
 
@@ -19,7 +20,7 @@ namespace pdfSeiseiKun
         public Manegement(
             PdfWriter writer,
             Document root,
-            BaseFont font,
+            string font,
             int[] titleColor,
             int[] textColor
             )
@@ -27,21 +28,24 @@ namespace pdfSeiseiKun
             this.master = writer.DirectContent;
             this.writer = writer;
             this.root = root;
-            this.font = font;
+            this.font = BaseFont.CreateFont(font, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
             this.titleColor = titleColor;
             this.textColor = textColor;
+            this.subtitle = "";
         }
 
 
         public void AddTitle(string title)
         {
             root.NewPage();
-            master.SetFontAndSize(font, 70);
+            master.SetFontAndSize(font, 80);
             master.SetColorFill(new BaseColor(titleColor[0], titleColor[1], titleColor[2]));
 
             master.BeginText();
             master.ShowTextAligned(Element.ALIGN_LEFT, title, 50, 270, 0);
             master.EndText();
+
+            AddSubTitle();
         }
 
         public void AddText(string content)
@@ -65,6 +69,21 @@ namespace pdfSeiseiKun
                 y -= 55;
 
             }
+
+            AddSubTitle();
+        }
+
+        private void AddSubTitle()
+        {
+            int x = 930;
+            int y = 470;
+
+            master.SetFontAndSize(font, 50);
+            master.SetColorFill(new BaseColor(titleColor[0], titleColor[1], titleColor[2]));
+            master.BeginText();
+            master.ShowTextAligned(Element.ALIGN_RIGHT, subtitle, x, y, 0);
+            master.EndText();
+
         }
 
         public void AddImage(string path)
@@ -89,6 +108,8 @@ namespace pdfSeiseiKun
 
             image.SetAbsolutePosition((960 - x) / 2, (540 - y) / 2);
             root.Add(image);
+
+            AddSubTitle();
         }
         
 
@@ -109,6 +130,8 @@ namespace pdfSeiseiKun
                 writer.NewPage();
                 AddText(" ");
                 writer.DirectContent.AddTemplate(writer.GetImportedPage(reader, i), 0, 0);
+
+                AddSubTitle();
             }
         }
 
@@ -123,6 +146,9 @@ namespace pdfSeiseiKun
                 // { "pass",@"^\s*$" },   // finaly
                 { "empty", @"^---$"},
                 { "title", @"^#\s.+" },
+                { "subtitle", @"^##\s.+" },
+                { "deletesubtitle", @"^##$" },
+                { "multiplelines", "\"\"\"" },
                 { "itemize", @"^-\s.+" },
                 { "factor", @"^(\[)([^\[\]]+)(\s*:\s*)([^\[\]]+)(\])$" },
                 { "config", @"^(\()([^\(\)]+)(\s*:\s*)([^\(\)]+)(\))$" },

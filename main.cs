@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Net;
-using System.Collections;
-using System.Collections.Generic;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System.Text.RegularExpressions;
@@ -44,8 +42,6 @@ namespace pdfSeiseiKun
             var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
             var writer = PdfWriter.GetInstance(root, fs);
             root.Open();
-            // open font file
-            var f = BaseFont.CreateFont(font, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
             // open text file
             var file = new StreamReader(inputPath);
 
@@ -53,16 +49,15 @@ namespace pdfSeiseiKun
             var manegemant = new Manegement(
                 writer,
                 root,
-                f,
+                font,
                 new int[3] { 0x00, 0xd4, 0xff }, // cyan
                 new int[3] { 0x00, 0x00, 0x00 } // black
                 );
 
             /*** start main ***/
 
-            // for itemize text
+            // for itemize text   // and for multi line text
             string itemizeTmp = "";
-            // start read text file
             while (!file.EndOfStream)
             {
                 // read text
@@ -70,7 +65,7 @@ namespace pdfSeiseiKun
                 // check content type.  category is type string
                 string category = Manegement.checkContent(text);
 
-                //  switch action for category
+                STARTSWITCH:
                 switch (category)
                 {
                     case "text":
@@ -81,11 +76,48 @@ namespace pdfSeiseiKun
                         manegemant.AddTitle(text.Substring(2));
                         break;
 
-                    case "itemize":
-                        // set text for itemize.  '\' is for new-line char in 'AddText()'
-                        // if end itemize(one or more blank-line in text), goto case pass and write text
-                        itemizeTmp += "・ " + text.Substring(2) + @"\";
+                    case "subtitle":
+                        manegemant.subtitle = text.Substring(3);
                         break;
+
+                    case "deletesubtitle":
+                        manegemant.subtitle = "";
+                        break;
+
+                    case "multiplelines":
+                        {
+                            // for write text
+                            string tmp = "";
+                            while (true)
+                            {
+                                // read next line, check, 
+                                text = file.ReadLine();
+                                // if text is '"""', read next line, check, 
+                                if (Manegement.checkContent(text) != "multiplelines") tmp += "\\" + text;
+                                else { text = file.ReadLine(); category = Manegement.checkContent(text); break; }
+                            }
+                            // write text, goto start-switch
+                            manegemant.AddText(tmp);
+                            goto STARTSWITCH;
+                        }
+
+                    case "itemize":
+                        {
+                            // for write text
+                            string tmp = "・ " + text.Substring(2);
+                            while (true)
+                            {
+                                // read next line, check, 
+                                text = file.ReadLine();
+                                string cattmp = Manegement.checkContent(text);
+                                // if text is not start with '- ', 
+                                if (cattmp == "itemize") tmp += "\\・ " + text.Substring(2);
+                                else { category = cattmp; break; }
+                            }
+                            // write text, and goto start-switch
+                            manegemant.AddText(tmp);
+                            goto STARTSWITCH;
+                        }
 
                     case "empty":
                         // write blank to make blank slide
@@ -131,7 +163,7 @@ namespace pdfSeiseiKun
                                 catch (WebException)
                                 {
                                     var tmp = manegemant.textColor;
-                                    manegemant.textColor = new int[3] { 0xff, 0, 0 };
+                                    manegemant.textColor = new int[3] { 0xff, 0, 0 };  // red
                                     manegemant.AddText("Image error, file not found");
                                     manegemant.textColor = tmp;
                                 }
